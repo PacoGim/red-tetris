@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 
 type Block = [number, number]
@@ -106,7 +106,7 @@ const lockPiece = (grid: Grid, piece: Piece): Grid => {
 }
 
 const clearLines = (grid: Grid) => {
-  const filtered = grid.filter((row) => row.some((cell) => cell !== ''))
+  const filtered = grid.filter((row) => row.some((cell) => cell === ''))
   const linesCleared = ROWS - filtered.length
   const nextGrid = Array.from({ length: linesCleared }, () => Array(COLS).fill('')).concat(filtered)
   return { grid: nextGrid, linesCleared }
@@ -142,6 +142,16 @@ function App() {
     setScore(0)
     setGameOver(false)
     setIsPaused(false)
+  }
+
+  const spawnPiece = () => {
+    const piece = { ...nextPiece, x: 3, y: 0, rotation: 0 }
+    if (collides(grid, piece)) {
+      setGameOver(true)
+      return
+    }
+    setActivePiece(piece)
+    setNextPiece(randomPiece())
   }
 
   const movePiece = (dx: number, dy: number) => {
@@ -192,7 +202,9 @@ function App() {
     }
   }
 
-  const drop = () => {
+  const dropRef = useRef<() => void>()
+
+  dropRef.current = () => {
     if (gameOver || isPaused) return
     if (!movePiece(0, 1)) {
       lockAndSpawn(activePiece)
@@ -238,14 +250,14 @@ function App() {
     }
     if (!gameOver && !isPaused) {
       const speed = Math.max(120, 700 - Math.floor(score / 200) * 20)
-      intervalRef.current = setInterval(drop, speed)
+      intervalRef.current = setInterval(() => dropRef.current?.(), speed)
     }
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
       }
     }
-  }, [drop, gameOver, isPaused, score])
+  }, [gameOver, isPaused, score])
 
   const helpText = gameOver ? 'Appuyez sur Entrée pour recommencer' : 'Flèches = déplacer, ↑ = tourner, espace = chute rapide'
 
